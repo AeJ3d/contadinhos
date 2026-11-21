@@ -53,8 +53,8 @@ const CATALOGO = {
   "coruja01": {
     nome: "Dona Lua", emoji: "🦉",
     historias: [
-      { titulo: "A estrela que tinha medo do escuro", arquivo: "audio/demo.wav" },
-      { titulo: "Boa noite, floresta", arquivo: "audio/coruja01-02.mp3" }
+      { titulo: "A estrela que tinha medo do escuro",
+        arquivo: ["coruja01-01.m4a", "audio/coruja01-01.m4a", "coruja01-01.m4a.m4a"] }
     ]
   },
   "dino01": {
@@ -72,7 +72,7 @@ if (!boneco) {
   app.innerHTML = `<div class="avatar">🎈</div>
     <p class="msg">Ops! Não encontrei esse Contadinho.<br>Encoste o bonequinho no celular de novo.</p>`;
 } else {
-  let atual = 0;
+  let atual = 0, fontes = [], fonte = 0;
   const C = 2 * Math.PI * 82;
   app.innerHTML = `
     <div class="avatar">${boneco.emoji}</div>
@@ -93,7 +93,8 @@ if (!boneco) {
     atual = i;
     const h = boneco.historias[i];
     titulo.textContent = h.titulo;
-    audio.src = h.arquivo;
+    fontes = [].concat(h.arquivo); fonte = 0;
+    audio.src = fontes[0];
     bar.style.strokeDashoffset = C;
     [...others.children].forEach((b, j) => b.classList.toggle("on", j === i));
     if (tocar) audio.play().catch(() => {});
@@ -105,12 +106,16 @@ if (!boneco) {
       others.appendChild(b);
     });
   }
-  play.onclick = () => audio.paused ? audio.play().catch(erro) : audio.pause();
+  play.onclick = () => audio.paused ? audio.play().catch(() => {}) : audio.pause();
   audio.onplay = () => { play.textContent = "❚❚"; document.body.classList.add("playing"); hint.textContent = "Ouvindo…"; };
   audio.onpause = () => { play.textContent = "▶"; document.body.classList.remove("playing"); hint.textContent = "Toque para continuar"; };
   audio.onended = () => { play.textContent = "↺"; document.body.classList.remove("playing"); hint.textContent = "Fim! Quer ouvir de novo?"; };
   audio.ontimeupdate = () => { if (audio.duration) bar.style.strokeDashoffset = C * (1 - audio.currentTime / audio.duration); };
-  audio.onerror = erro;
+  audio.onerror = () => {
+    // tenta o próximo caminho da lista antes de mostrar o aviso
+    if (fonte < fontes.length - 1) { audio.src = fontes[++fonte]; audio.play().catch(() => {}); }
+    else erro();
+  };
   function erro() { hint.textContent = "Essa história ainda está sendo gravada 🎙️"; }
   carregar(0, false);
   // Tenta tocar sozinho; se o navegador bloquear, a criança toca no botão.
@@ -118,4 +123,3 @@ if (!boneco) {
 }
 </script>
 </body>
-</html>
