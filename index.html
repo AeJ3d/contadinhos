@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Contadinhos · AliJoa</title>
+<style>
+  :root { --bg:#FFF7EC; --ink:#3B2A55; --accent:#8E6CC9; --accent2:#F29A2E; --card:#FFFFFF; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--ink);
+    font-family: "Trebuchet MS", "Avenir Next", system-ui, sans-serif; }
+  body { display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:24px 20px calc(24px + env(safe-area-inset-bottom)); text-align:center; }
+  .brand { position:fixed; top:14px; left:0; right:0; font-size:13px; letter-spacing:.08em;
+    text-transform:uppercase; opacity:.55; }
+  .avatar { font-size:84px; line-height:1; margin-bottom:6px; animation:bob 3s ease-in-out infinite; }
+  .playing .avatar { animation:talk .5s ease-in-out infinite; }
+  @keyframes bob { 50% { transform:translateY(-6px); } }
+  @keyframes talk { 50% { transform:scale(1.06) rotate(-3deg); } }
+  h1 { font-size:28px; margin:4px 0 2px; }
+  .story { font-size:18px; opacity:.8; margin:0 0 28px; min-height:1.3em; }
+  .ring { position:relative; width:200px; height:200px; }
+  .ring svg { position:absolute; inset:0; transform:rotate(-90deg); }
+  .ring circle { fill:none; stroke-width:12; }
+  .ring .track { stroke:#EADFF7; }
+  .ring .bar { stroke:var(--accent); stroke-linecap:round; transition:stroke-dashoffset .3s linear; }
+  #play { position:absolute; inset:22px; border:none; border-radius:50%; background:var(--accent2);
+    color:#fff; font-size:64px; cursor:pointer; box-shadow:0 8px 0 #C9761A; }
+  #play:active { transform:translateY(4px); box-shadow:0 4px 0 #C9761A; }
+  .hint { margin-top:22px; font-size:16px; opacity:.7; }
+  .others { margin-top:26px; display:flex; flex-wrap:wrap; gap:10px; justify-content:center; max-width:420px; }
+  .others button { border:2px solid var(--accent); background:var(--card); color:var(--ink);
+    border-radius:999px; padding:10px 16px; font-size:15px; cursor:pointer; }
+  .others button.on { background:var(--accent); color:#fff; }
+  .msg { max-width:340px; font-size:18px; }
+</style>
+</head>
+<body>
+<div class="brand">Contadinhos · AliJoa</div>
+<div id="app"></div>
+<audio id="audio" preload="auto" playsinline></audio>
+
+<script>
+/* ============================================================
+   CATÁLOGO — é só editar aqui para trocar ou adicionar histórias.
+   A NFC de cada bonequinho aponta para:  .../?b=CODIGO
+   Trocar a história NÃO exige regravar a NFC: só mude a lista.
+   - A primeira história da lista é a que toca ao encostar o boneco.
+   - Para bonecos gravados pelos avós, use um código aleatório
+     (ex.: "k7f3q9") para ninguém adivinhar o endereço.
+   ============================================================ */
+const CATALOGO = {
+  "coruja01": {
+    nome: "Dona Lua", emoji: "🦉",
+    historias: [
+      { titulo: "A estrela que tinha medo do escuro", arquivo: "audio/demo.wav" },
+      { titulo: "Boa noite, floresta", arquivo: "audio/coruja01-02.mp3" }
+    ]
+  },
+  "dino01": {
+    nome: "Tito", emoji: "🦖",
+    historias: [ { titulo: "O dinossauro que espirrava fogo", arquivo: "audio/dino01-01.mp3" } ]
+  }
+};
+
+const app = document.getElementById("app");
+const audio = document.getElementById("audio");
+const code = new URLSearchParams(location.search).get("b");
+const boneco = CATALOGO[code];
+
+if (!boneco) {
+  app.innerHTML = `<div class="avatar">🎈</div>
+    <p class="msg">Ops! Não encontrei esse Contadinho.<br>Encoste o bonequinho no celular de novo.</p>`;
+} else {
+  let atual = 0;
+  const C = 2 * Math.PI * 82;
+  app.innerHTML = `
+    <div class="avatar">${boneco.emoji}</div>
+    <h1>${boneco.nome}</h1>
+    <p class="story" id="titulo"></p>
+    <div class="ring">
+      <svg viewBox="0 0 200 200"><circle class="track" cx="100" cy="100" r="82"/>
+        <circle class="bar" id="bar" cx="100" cy="100" r="82" stroke-dasharray="${C}" stroke-dashoffset="${C}"/></svg>
+      <button id="play" aria-label="Ouvir história">▶</button>
+    </div>
+    <div class="hint" id="hint">Toque para ouvir a história</div>
+    <div class="others" id="others"></div>`;
+  const play = document.getElementById("play"), bar = document.getElementById("bar"),
+        hint = document.getElementById("hint"), titulo = document.getElementById("titulo"),
+        others = document.getElementById("others");
+
+  function carregar(i, tocar) {
+    atual = i;
+    const h = boneco.historias[i];
+    titulo.textContent = h.titulo;
+    audio.src = h.arquivo;
+    bar.style.strokeDashoffset = C;
+    [...others.children].forEach((b, j) => b.classList.toggle("on", j === i));
+    if (tocar) audio.play().catch(() => {});
+  }
+  if (boneco.historias.length > 1) {
+    boneco.historias.forEach((h, i) => {
+      const b = document.createElement("button");
+      b.textContent = h.titulo; b.onclick = () => carregar(i, true);
+      others.appendChild(b);
+    });
+  }
+  play.onclick = () => audio.paused ? audio.play().catch(erro) : audio.pause();
+  audio.onplay = () => { play.textContent = "❚❚"; document.body.classList.add("playing"); hint.textContent = "Ouvindo…"; };
+  audio.onpause = () => { play.textContent = "▶"; document.body.classList.remove("playing"); hint.textContent = "Toque para continuar"; };
+  audio.onended = () => { play.textContent = "↺"; document.body.classList.remove("playing"); hint.textContent = "Fim! Quer ouvir de novo?"; };
+  audio.ontimeupdate = () => { if (audio.duration) bar.style.strokeDashoffset = C * (1 - audio.currentTime / audio.duration); };
+  audio.onerror = erro;
+  function erro() { hint.textContent = "Essa história ainda está sendo gravada 🎙️"; }
+  carregar(0, false);
+  // Tenta tocar sozinho; se o navegador bloquear, a criança toca no botão.
+  audio.play().catch(() => {});
+}
+</script>
+</body>
+</html>
